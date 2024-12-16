@@ -4,10 +4,7 @@ import appExamples2.appExamples.channels.babelNewChannels.tcpChannels.BabelTCP_P
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.simplePaxos.helperFiles.TermArguments;
-import org.simplePaxos.messages.AcceptMessage;
-import org.simplePaxos.messages.PaxosMessage;
-import org.simplePaxos.messages.PrepareMessage;
-import org.simplePaxos.messages.PromiseMessage;
+import org.simplePaxos.messages.*;
 import pt.unl.fct.di.novasys.babel.channels.events.OnConnectionDownEvent;
 import pt.unl.fct.di.novasys.babel.channels.events.OnMessageConnectionUpEvent;
 import pt.unl.fct.di.novasys.babel.core.GenericProtocolExtension;
@@ -41,7 +38,12 @@ public class AcceptProtocol extends GenericProtocolExtension  {
         totalSent = 0;
 
         //TODO after starting, connect to all clients
-        String [] contact = properties.getProperty("contact").split(":");
+        String [] contacts = properties.getProperty("contacts").split(";");
+        for (String contact : contacts) {
+            String [] splittedAddress = contact.split(":");
+            Host h = new Host(InetAddress.getByName(splittedAddress[0]),Integer.parseInt(splittedAddress[1]));
+            peers.add(h);
+        }
 
         String address = properties.getProperty("address");
         String port = properties.getProperty("port");
@@ -62,7 +64,9 @@ public class AcceptProtocol extends GenericProtocolExtension  {
 
         registerMessageHandler(channel, PrepareMessage.ID, this::uponPrepareMessage,null,null);
         registerMessageHandler(channel, AcceptMessage.ID, this::uponAcceptMessage,null,null);
-        logger.info("Accept Protocol Started for: ",);
+        registerMessageHandler(channel, DecidedMessage.ID, this::uponDecidedValue,null,null);
+
+        logger.info("Accept Protocol Started for: ",self);
     }
 
     private void uponIHaveFileMessage(PaxosMessage msg, Host from, short sourceProto, int channelId, String connectionId) {
@@ -98,7 +102,8 @@ public class AcceptProtocol extends GenericProtocolExtension  {
         }
     }
 
-    private void uponDecidedValue(AcceptMessage acceptMessage, Host from, short sourceProto, int channelId, String connectionId) {
+    private void uponDecidedValue(DecidedMessage acceptMessage, Host from, short sourceProto, int channelId, String connectionId) {
+        /**
         TermArguments term = computeTerm(acceptMessage.term);
         if ( term.promised_num < acceptMessage.proposalNum || (term.promised_num == acceptMessage.proposalNum && from.equals(term.remoteHost) )){
             term.promised_num = acceptMessage.proposalNum;
@@ -107,7 +112,7 @@ public class AcceptProtocol extends GenericProtocolExtension  {
             term.remoteHost = from;
             sendMessage(acceptMessage,connectionId);
             totalSent++;
-        }
+        }**/
     }
 
     private void uponConnectionDown(OnConnectionDownEvent event, int channelId) {
