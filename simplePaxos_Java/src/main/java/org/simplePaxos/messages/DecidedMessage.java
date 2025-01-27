@@ -19,20 +19,12 @@ public class DecidedMessage extends ProtoMessage {
         this.term = term;
         this.paxosMessage = paxosMessage;
     }
+    public DecidedMessage() {
+        super(ID);
+    }
 
-    public static ISerializer<DecidedMessage> serializer = new ISerializer<DecidedMessage>() {
-
-        @Override
-        public void serialize(DecidedMessage acceptMessage, ByteBuf byteBuf) throws IOException {
-            byteBuf.writeInt(acceptMessage.proposalNum);
-            byteBuf.writeInt(acceptMessage.term);
-            PaxosMessage.serializer.serialize(acceptMessage.paxosMessage,byteBuf);
-        }
-
-        @Override
-        public DecidedMessage deserialize(ByteBuf byteBuf) throws IOException {
-            return new DecidedMessage(byteBuf.readInt(),byteBuf.readInt(),PaxosMessage.serializer.deserialize(byteBuf));
-        }
-    };
-
+    @Override
+    public <V extends ProtoMessage> ProtoMessage getNewEmptyInstance() {
+        return null;
+    }
 }

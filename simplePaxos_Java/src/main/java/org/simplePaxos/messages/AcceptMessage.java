@@ -19,6 +19,12 @@ public class AcceptMessage extends ProtoMessage {
         this.term = term;
         this.paxosMessage = paxosMessage;
     }
+    public AcceptMessage() {
+        super(ID);
+        this.proposalNum = -1;
+        this.term = -1;
+        this.paxosMessage = new PaxosMessage();
+    }
 
     public static ISerializer<AcceptMessage> serializer = new ISerializer<AcceptMessage>() {
 
@@ -35,4 +41,8 @@ public class AcceptMessage extends ProtoMessage {
         }
     };
 
+    @Override
+    public <V extends ProtoMessage> ProtoMessage getNewEmptyInstance() {
+        return new AcceptMessage();
+    }
 }

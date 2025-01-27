@@ -25,36 +25,17 @@ public class PaxosMessage extends ProtoMessage {
         this.term = term;
         this.decidedCount = decidedCount;
     }
+    public PaxosMessage() {
+        super(ID);
+    }
 
     public PaxosMessage(short id) {
         super(id);
     }
 
-    public static ISerializer<PaxosMessage> serializer = new ISerializer<PaxosMessage>() {
-
-        @Override
-        public void serialize(PaxosMessage paxosMessage, ByteBuf byteBuf) throws IOException {
-
-            AuxiliaryMethods.writeString(paxosMessage.msgValue,byteBuf);
-            AuxiliaryMethods.writeString(paxosMessage.msgId,byteBuf);
-            byteBuf.writeInt(paxosMessage.proposalNum);
-            byteBuf.writeInt(paxosMessage.term);
-            byteBuf.writeInt(paxosMessage.decidedCount);
-
-        }
-
-        @Override
-        public PaxosMessage deserialize(ByteBuf byteBuf) throws IOException {
-            //String msgValue, String msgId, int proposalNum, int term, int decidedCount
-            return new PaxosMessage(
-                    AuxiliaryMethods.readString(byteBuf),
-                    AuxiliaryMethods.readString(byteBuf),
-                    byteBuf.readInt(),
-                    byteBuf.readInt(),
-                    byteBuf.readInt()
-            );
-        }
-    };
-
+    @Override
+    public <V extends ProtoMessage> ProtoMessage getNewEmptyInstance() {
+        return new PaxosMessage();
+    }
 
 }
