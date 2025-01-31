@@ -1,23 +1,22 @@
 package org.simplePaxos.protocols;
 
-import appExamples2.appExamples.channels.babelNewChannels.tcpChannels.BabelTCP_P2P_Channel;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.simplePaxos.helperFiles.TermArguments;
 import org.simplePaxos.messages.*;
+import pt.unl.fct.di.novasys.babel.annotations.ChannelEventHandlerAnnotation;
+import pt.unl.fct.di.novasys.babel.annotations.MessageInHandlerAnnotation;
 import pt.unl.fct.di.novasys.babel.channels.events.OnConnectionDownEvent;
 import pt.unl.fct.di.novasys.babel.channels.events.OnMessageConnectionUpEvent;
 import pt.unl.fct.di.novasys.babel.core.GenericProtocolExtension;
 import pt.unl.fct.di.novasys.babel.exceptions.HandlerRegistrationException;
+import pt.unl.fct.di.novasys.babel.internal.MessageInEvent;
+import pt.unl.fct.di.novasys.network.ChannelLogicsWithNetty.NettyTCPChannel.utils.NewChannelsFactoryUtils;
+import pt.unl.fct.di.novasys.network.babelChannels.babelNewChannels.tcpChannels.BabelTCP_P2P_Channel;
 import pt.unl.fct.di.novasys.network.data.Host;
-import tcpSupport.tcpChannelAPI.channel.NettyTCPChannel;
-import tcpSupport.tcpChannelAPI.utils.NewChannelsFactoryUtils;
 
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.util.*;
 
 
@@ -55,17 +54,6 @@ public class AcceptProtocol extends GenericProtocolExtension  {
 
     @Override
     public void init(Properties properties) throws HandlerRegistrationException, IOException {
-
-        registerMessageSerializer(channel, PaxosMessage.ID, PaxosMessage.serializer);
-        registerMessageSerializer(channel, PaxosMessage.ID, PaxosMessage.serializer);
-
-        registerChannelEventHandler(channel, OnMessageConnectionUpEvent.EVENT_ID, this::uponMessageConnectionUp);
-        registerChannelEventHandler(channel, OnConnectionDownEvent.EVENT_ID, this::uponConnectionDown);
-
-        registerMessageHandler(channel, PrepareMessage.ID, this::uponPrepareMessage,null,null);
-        registerMessageHandler(channel, AcceptMessage.ID, this::uponAcceptMessage,null,null);
-        registerMessageHandler(channel, DecidedMessage.ID, this::uponDecidedValue,null,null);
-
         logger.info("Accept Protocol Started for: ",self);
     }
 
@@ -79,30 +67,35 @@ public class AcceptProtocol extends GenericProtocolExtension  {
             return termArguments;
         });
     }
-    private void uponPrepareMessage(PrepareMessage prepareMessage, Host from, short sourceProto, int channelId, String connectionId) {
+    @MessageInHandlerAnnotation(PROTO_MESSAGE_ID = PrepareMessage.ID)
+    private void uponPrepareMessage(MessageInEvent event, PrepareMessage prepareMessage) {
         TermArguments term = computeTerm(prepareMessage.term);
 
         if (term.promised_num < prepareMessage.proposalNum){
             term.promised_num = prepareMessage.proposalNum;
-            term.remoteHost = from;
+            term.remoteHost = event.getFrom();
             PromiseMessage promiseMessage = new PromiseMessage(term.accepted_num,prepareMessage.proposalNum,term.term,term.acceptedValue);
-            sendMessage(promiseMessage,connectionId);
+            sendMessage(promiseMessage,event.connectionId);
         }
     }
 
-    private void uponAcceptMessage(AcceptMessage acceptMessage, Host from, short sourceProto, int channelId, String connectionId) {
+    @MessageInHandlerAnnotation(PROTO_MESSAGE_ID = AcceptMessage.ID)
+    private void uponAcceptMessage(MessageInEvent event, AcceptMessage acceptMessage) {
         TermArguments term = computeTerm(acceptMessage.term);
-        if ( term.promised_num < acceptMessage.proposalNum || (term.promised_num == acceptMessage.proposalNum && from.equals(term.remoteHost) )){
+        if ( term.promised_num < acceptMessage.proposalNum || (term.promised_num == acceptMessage.proposalNum && event.getFrom().equals(term.remoteHost) )){
             term.promised_num = acceptMessage.proposalNum;
             term.accepted_num = acceptMessage.proposalNum;
             term.acceptedValue = acceptMessage.paxosMessage;
-            term.remoteHost = from;
-            sendMessage(acceptMessage,connectionId);
+            term.remoteHost = event.getFrom();
+            sendMessage(acceptMessage,event.connectionId);
             totalSent++;
         }
     }
 
-    private void uponDecidedValue(DecidedMessage acceptMessage, Host from, short sourceProto, int channelId, String connectionId) {
+    @MessageInHandlerAnnotation(PROTO_MESSAGE_ID = DecidedMessage.ID)
+    private void uponDecidedValue(MessageInEvent event,DecidedMessage acceptMessage) {
+        //@TODO
+        logger.info("@TODO");
         /**
         TermArguments term = computeTerm(acceptMessage.term);
         if ( term.promised_num < acceptMessage.proposalNum || (term.promised_num == acceptMessage.proposalNum && from.equals(term.remoteHost) )){
@@ -115,11 +108,13 @@ public class AcceptProtocol extends GenericProtocolExtension  {
         }**/
     }
 
+    @ChannelEventHandlerAnnotation(EVENT_ID = OnConnectionDownEvent.EVENT_ID)
     private void uponConnectionDown(OnConnectionDownEvent event, int channelId) {
         logger.info("CONNECTION DOWN: {} {} {}",event.connectionId,event.getNode(),event.type);
         peers.remove(event.getNode());
     }
 
+    @ChannelEventHandlerAnnotation(EVENT_ID = OnMessageConnectionUpEvent.EVENT_ID)
     private void uponMessageConnectionUp(OnMessageConnectionUpEvent event, int channelId) {
         logger.info("{} MESSAGE CONNECTION TO {} IS UP.",channelId,event.getNode());
         peers.add(event.getNode());

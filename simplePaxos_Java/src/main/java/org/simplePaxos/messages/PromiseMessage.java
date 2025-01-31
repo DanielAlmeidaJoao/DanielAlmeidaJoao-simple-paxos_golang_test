@@ -22,26 +22,4 @@ public class PromiseMessage extends ProtoMessage {
         this.term = term;
         this.acceptedValue = acceptedValue;
     }
-
-    public static ISerializer<PromiseMessage> serializer = new ISerializer<PromiseMessage>() {
-
-        @Override
-        public void serialize(PromiseMessage promiseMessage, ByteBuf byteBuf) throws IOException {
-            byteBuf.writeInt(promiseMessage.acceptedNum);
-            byteBuf.writeInt(promiseMessage.promisedNum);
-            byteBuf.writeInt(promiseMessage.term);
-            PaxosMessage.serializer.serialize(promiseMessage.acceptedValue,byteBuf);
-        }
-
-        @Override
-        public PromiseMessage deserialize(ByteBuf byteBuf) throws IOException {
-            return new PromiseMessage(
-                    byteBuf.readInt(),
-                    byteBuf.readInt(),
-                    byteBuf.readInt(),
-                    PaxosMessage.serializer.deserialize(byteBuf)
-            );
-        }
-    };
-
 }

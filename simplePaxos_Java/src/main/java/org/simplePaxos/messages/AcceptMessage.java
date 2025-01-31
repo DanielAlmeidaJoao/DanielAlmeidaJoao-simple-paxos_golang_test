@@ -26,21 +26,6 @@ public class AcceptMessage extends ProtoMessage {
         this.paxosMessage = new PaxosMessage();
     }
 
-    public static ISerializer<AcceptMessage> serializer = new ISerializer<AcceptMessage>() {
-
-        @Override
-        public void serialize(AcceptMessage acceptMessage, ByteBuf byteBuf) throws IOException {
-            byteBuf.writeInt(acceptMessage.proposalNum);
-            byteBuf.writeInt(acceptMessage.term);
-            PaxosMessage.serializer.serialize(acceptMessage.paxosMessage,byteBuf);
-        }
-
-        @Override
-        public AcceptMessage deserialize(ByteBuf byteBuf) throws IOException {
-            return new AcceptMessage(byteBuf.readInt(),byteBuf.readInt(),PaxosMessage.serializer.deserialize(byteBuf));
-        }
-    };
-
     @Override
     public <V extends ProtoMessage> ProtoMessage getNewEmptyInstance() {
         return new AcceptMessage();

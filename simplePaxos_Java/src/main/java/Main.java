@@ -1,14 +1,7 @@
-import appExamples2.appExamples.channels.babelNewChannels.quicChannels.BabelQUIC_P2P_Channel;
-import appExamples2.appExamples.channels.babelNewChannels.tcpChannels.BabelTCP_P2P_Channel;
-import appExamples2.appExamples.channels.babelNewChannels.udpBabelChannel.BabelUDPChannel;
-import appExamples2.appExamples.channels.babelNewChannels.udpBabelChannel.BabelUDPInitializer;
-import appExamples2.appExamples.channels.initializers.BabelQUICChannelInitializer;
-import appExamples2.appExamples.channels.initializers.BabelTCPChannelInitializer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import pt.unl.fct.di.novasys.babel.core.Babel;
 import pt.unl.fct.di.novasys.network.data.Host;
-import quicSupport.utils.enums.NetworkRole;
 
 import java.net.Inet4Address;
 import java.net.InetAddress;
@@ -29,7 +22,7 @@ public class Main {
     public static void main(String[] args) throws Exception {
         Babel babel = Babel.getInstance();
         //babel.registerChannelInitializer(BabelQUIC_P2P_Channel.CHANNEL_NAME,new BabelQUICChannelInitializer(NetworkRole.P2P_CHANNEL));
-        babel.registerChannelInitializer(BabelTCP_P2P_Channel.CHANNEL_NAME,new BabelTCPChannelInitializer(NetworkRole.P2P_CHANNEL));
+        //babel.registerChannelInitializer(BabelTCP_P2P_Channel.CHANNEL_NAME,new BabelTCPChannelInitializer(NetworkRole.P2P_CHANNEL));
         //babel.registerChannelInitializer(BabelUDPChannel.NAME,new BabelUDPInitializer());
 
         Properties props = Babel.loadConfig(args, DEFAULT_CONF);
