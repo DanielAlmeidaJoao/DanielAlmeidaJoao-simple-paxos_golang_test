@@ -66,6 +66,7 @@ public class ProposeProtocol extends GenericProtocolExtension {
         logger.info(self+ "__ GOING TO PROPOSE "+HelperAux.gson.toJson(toPropose));
 
         currentTerm = request.getPaxosMessage().term;
+
         if(toPropose.msgId == null){
             logger.info(self + " NOT GOING TO PROPOSE "+toPropose.msgId);
             return;
