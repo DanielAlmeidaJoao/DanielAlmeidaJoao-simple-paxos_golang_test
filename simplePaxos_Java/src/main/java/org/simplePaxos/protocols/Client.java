@@ -7,14 +7,17 @@ import org.simplePaxos.internalCommunicationMessages.ChannelCreatedRequest;
 import org.simplePaxos.internalCommunicationMessages.LearnRequest;
 import org.simplePaxos.internalCommunicationMessages.ProposeRequest;
 import org.simplePaxos.messages.PaxosMessage;
+import org.simplePaxos.timers.FinishTimer;
 import org.simplePaxos.timers.HashResultPrinterTimer;
 import org.simplePaxos.timers.ProposeTimer;
 import pt.unl.fct.di.novasys.babel.annotations.ChannelEventHandlerAnnotation;
 import pt.unl.fct.di.novasys.babel.annotations.RequestHandlerAnnotation;
+import pt.unl.fct.di.novasys.babel.annotations.TimerEventHandlerAnnotation;
 import pt.unl.fct.di.novasys.babel.channels.events.OnConnectionDownEvent;
 import pt.unl.fct.di.novasys.babel.channels.events.OnMessageConnectionUpEvent;
 import pt.unl.fct.di.novasys.babel.core.GenericProtocolExtension;
 import pt.unl.fct.di.novasys.babel.exceptions.HandlerRegistrationException;
+import pt.unl.fct.di.novasys.babel.generic.ProtoTimer;
 import pt.unl.fct.di.novasys.network.ChannelLogicsWithNetty.NettyTCPChannel.utils.NewChannelsFactoryUtils;
 import pt.unl.fct.di.novasys.network.babelChannels.babelNewChannels.tcpChannels.BabelTCP_P2P_Channel;
 import pt.unl.fct.di.novasys.network.data.Host;
@@ -65,8 +68,9 @@ public class Client extends GenericProtocolExtension {
         sendRequest(request,ProposeProtocol.ID);
 
 
-        registerTimerHandler(HashResultPrinterTimer.ID,this::printResultsPeriodically);
-        registerTimerHandler(ProposeTimer.ID,this::timeHandler);
+        //registerTimerHandler(HashResultPrinterTimer.ID,this::printResultsPeriodically);
+        //registerTimerHandler(ProposeTimer.ID,this::timeHandler);
+        //registerTimerHandler(FinishTimer.ID,this::onFinishTimer);
 
         String [] contacts = properties.getProperty("contacts").split(",");
         for (String contact : contacts) {
@@ -77,9 +81,9 @@ public class Client extends GenericProtocolExtension {
 
         }
 
-        setupTimer(new ProposeTimer(),10*1000);
-        setupPeriodicTimer(new HashResultPrinterTimer(),5*1000,5*1000);
-        setupPeriodicTimer(new ProposeTimer(),5*1000,500);
+        setupTimer(ProposeTimer.ID,10*1000);
+        setupPeriodicTimer(ProposeTimer.ID,5*1000,500);
+        setupPeriodicTimer(HashResultPrinterTimer.ID,5*1000,5*1000);
     }
 
     public PaxosMessage nextMessage(){
@@ -89,6 +93,7 @@ public class Client extends GenericProtocolExtension {
         count++;
         if (count > 1000){
             log.info(self+" -- ELAPSED IS -- : "+(System.currentTimeMillis()-start));
+            setupTimer(new FinishTimer(),30*1000);
             return null;
         }
         String msgValue = self+"_"+count;
@@ -107,10 +112,13 @@ public class Client extends GenericProtocolExtension {
         log.info(self+"__"+size+"__"+HelperAux.digest(stringBuffer.toString()));
     }
 
-    void printResultsPeriodically(HashResultPrinterTimer timer, long timerId){
+    @TimerEventHandlerAnnotation(TIMER_ID = HashResultPrinterTimer.ID)
+    void printResultsPeriodically(long timerId){
         appendMap();
     }
-    public void timeHandler(ProposeTimer proposeTimer, long timer){
+
+    @TimerEventHandlerAnnotation(TIMER_ID = ProposeTimer.ID)
+    public void timeHandler(long timer){
         if(lastProposed == null){
             lastProposed = nextMessage();
         }
@@ -119,6 +127,12 @@ public class Client extends GenericProtocolExtension {
             return;
         }
         sendRequest(new ProposeRequest(lastProposed),ProposeProtocol.ID);
+    }
+
+    @TimerEventHandlerAnnotation(TIMER_ID = FinishTimer.ID)
+    public void onFinishTimer(long timer){
+        log.info("Exiting... .. .");
+        System.exit(0);
     }
 
     @RequestHandlerAnnotation(REQUEST_ID = LearnRequest.REQUEST_ID)

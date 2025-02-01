@@ -32,7 +32,6 @@ public class ProposeProtocol extends GenericProtocolExtension {
 
     private PaxosMessage currentValue;
     private PaxosMessage highestPromise;
-    private PaxosMessage acceptValueCount;
 
     private Set<Host> peers;
     private int proposal_num;
@@ -59,7 +58,7 @@ public class ProposeProtocol extends GenericProtocolExtension {
     @RequestHandlerAnnotation(REQUEST_ID = ProposeRequest.ID)
     private void onProposeRequest(ProposeRequest request, short from){
         PaxosMessage toPropose = request.getPaxosMessage();
-        if(request.getPaxosMessage() == null){
+        if(request.getPaxosMessage() == null || currentTerm > request.getPaxosMessage().term){
             return;
         }
         currentValue = toPropose;
@@ -67,17 +66,13 @@ public class ProposeProtocol extends GenericProtocolExtension {
 
         currentTerm = request.getPaxosMessage().term;
 
-        if(toPropose.msgId == null){
-            logger.info(self + " NOT GOING TO PROPOSE "+toPropose.msgId);
-            return;
-        }
-
         proposal_num = toPropose.proposalNum + (1+random.nextInt(100));
+
         toPropose.proposalNum = proposal_num;
-        highestPromise = acceptValueCount = null;
+        //highestPromise = acceptValueCount = null;
         PrepareMessage prepareMessage = new PrepareMessage(proposal_num,toPropose.term);
-        promises = 0;
-        acks = 0;
+        //promises = 0;
+        //acks = 0;
         for (Host peer : peers) {
             sendMessage(prepareMessage,AcceptProtocol.PROTO_ID,peer);
         }
@@ -95,10 +90,12 @@ public class ProposeProtocol extends GenericProtocolExtension {
     }
 
     private void setPromiseValue(PaxosMessage acceptedValue){
-        if(acceptedValue != null){
-            if(highestPromise == null){
+        if (acceptedValue == null ){
+            highestPromise = currentValue;
+        } else{
+            if (highestPromise == null){
                 highestPromise = acceptedValue;
-            } else if (highestPromise.proposalNum < acceptedValue.proposalNum){
+            } else if ( highestPromise.proposalNum < acceptedValue.proposalNum){
                 highestPromise = acceptedValue;
             } else if (highestPromise.proposalNum == acceptedValue.proposalNum && highestPromise.msgId.hashCode() < acceptedValue.msgId.hashCode()){
                 highestPromise = acceptedValue;
@@ -108,43 +105,32 @@ public class ProposeProtocol extends GenericProtocolExtension {
 
     @MessageInHandlerAnnotation(PROTO_MESSAGE_ID = PromiseMessage.ID)
     public void onPromiseMessage(MessageInEvent event, PromiseMessage promiseMessage){
-        if (promiseMessage.term != currentTerm){
-            return;
-        }
-        setPromiseValue(promiseMessage.acceptedValue);
-        promises++;
-        if (promises >= HelperAux.getMajority(peers.size())){
-            if (highestPromise == null){
-                highestPromise = currentValue;
-            }
-            if (highestPromise == null){
-                return;
-            }
-
-            proposal_num = promiseMessage.promisedNum;
-            highestPromise.term = currentTerm;
-            highestPromise.proposalNum = proposal_num;
-            acceptValueCount = highestPromise;
-            AcceptMessage acceptMessage = new AcceptMessage(proposal_num,currentTerm,highestPromise);
-
-            for (Host peer : peers) {
-                sendMessage(acceptMessage,AcceptProtocol.PROTO_ID,peer);
+        if (promiseMessage.term == currentTerm && proposal_num==promiseMessage.promisedNum){
+            setPromiseValue(promiseMessage.acceptedValue);
+            promises++;
+            if (promises >= HelperAux.getMajority(peers.size())){
+                promises=0;
+                highestPromise.term = currentTerm;
+                highestPromise.proposalNum = proposal_num;
+                AcceptMessage acceptMessage = new AcceptMessage(proposal_num,currentTerm,highestPromise);
+                for (Host peer : peers) {
+                    sendMessage(acceptMessage,AcceptProtocol.PROTO_ID,peer);
+                }
             }
         }
     }
 
     @MessageInHandlerAnnotation(PROTO_MESSAGE_ID = AcceptMessage.ID)
     public void onAccepted(MessageInEvent event, AcceptMessage acceptMessage){
-        if (currentTerm != acceptMessage.term || proposal_num !=acceptMessage.proposalNum){
-            return;
-        }
-        acceptValueCount.proposalNum = acceptMessage.proposalNum;
-        acks++;
-        if (acks == HelperAux.getMajority(peers.size())){
-            acks = 0;
-            DecidedMessage decidedMessage = new DecidedMessage(proposal_num,currentTerm,acceptValueCount);
-            for (Host peer : peers) {
-                sendMessage(decidedMessage,LearnProto.ID,peer);
+        if (currentTerm == acceptMessage.term && proposal_num ==acceptMessage.proposalNum){
+            acks++;
+            if (acks == HelperAux.getMajority(peers.size())){
+                acks = 0;
+                DecidedMessage decidedMessage = new DecidedMessage(proposal_num,currentTerm,highestPromise);
+                currentTerm++;
+                for (Host peer : peers) {
+                    sendMessage(decidedMessage,LearnProto.ID,peer);
+                }
             }
         }
     }

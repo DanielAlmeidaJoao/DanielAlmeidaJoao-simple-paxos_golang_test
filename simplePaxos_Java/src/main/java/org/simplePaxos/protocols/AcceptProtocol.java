@@ -79,26 +79,6 @@ public class AcceptProtocol extends GenericProtocolExtension  {
         }
     }
 
-    @MessageInHandlerAnnotation(PROTO_MESSAGE_ID = DecidedMessage.ID)
-    private void uponDecidedValue(MessageInEvent event,DecidedMessage acceptMessage) {
-        //@TODO
-        logger.info("@TODO");
-        /**
-        TermArguments term = computeTerm(acceptMessage.term);
-        if ( term.promised_num < acceptMessage.proposalNum || (term.promised_num == acceptMessage.proposalNum && from.equals(term.remoteHost) )){
-            term.promised_num = acceptMessage.proposalNum;
-            term.accepted_num = acceptMessage.proposalNum;
-            term.acceptedValue = acceptMessage.paxosMessage;
-            term.remoteHost ={
-            lastProposed.term = currentTerm;
-            lastProposed.proposalNum = request.decidedMessage.proposalNum;
-            sendRequest(new ProposeRequest(lastProposed),ProposeProtocol.ID);
-        } from;
-            sendMessage(acceptMessage,connectionId);
-            totalSent++;
-        }**/
-    }
-
     @ChannelEventHandlerAnnotation(EVENT_ID = OnConnectionDownEvent.EVENT_ID)
     private void uponConnectionDown(OnConnectionDownEvent event, int channelId) {
         logger.info("CONNECTION DOWN: {} {} {}",event.connectionId,event.getNode(),event.type);
