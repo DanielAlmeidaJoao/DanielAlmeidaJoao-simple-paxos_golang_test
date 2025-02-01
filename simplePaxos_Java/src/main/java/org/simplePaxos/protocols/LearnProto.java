@@ -38,6 +38,7 @@ public class LearnProto extends GenericProtocolExtension {
     public LearnProto(String protoName, short protoId) {
         super(protoName, protoId);
         peers = new HashSet<>();
+        currentTerm = 1;
     }
 
     @Override
@@ -49,6 +50,8 @@ public class LearnProto extends GenericProtocolExtension {
 
     @MessageInHandlerAnnotation(PROTO_MESSAGE_ID = DecidedMessage.ID)
     public void onDecided(MessageInEvent event, DecidedMessage decidedMessage){
+        logger.info(self + " ON DECIDED "+decidedMessage.paxosMessage.msgId);
+
         totalReceived++;
         if (decidedMessage.paxosMessage.term >= currentTerm){
             logger.info("DECISION TAKEN "+decidedMessage.paxosMessage.msgId);

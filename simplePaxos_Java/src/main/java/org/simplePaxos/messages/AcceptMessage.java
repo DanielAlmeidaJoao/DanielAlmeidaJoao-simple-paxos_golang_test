@@ -23,11 +23,6 @@ public class AcceptMessage extends ProtoMessage {
         super(ID);
         this.proposalNum = -1;
         this.term = -1;
-        this.paxosMessage = new PaxosMessage();
-    }
-
-    @Override
-    public <V extends ProtoMessage> ProtoMessage getNewEmptyInstance() {
-        return new AcceptMessage();
+        this.paxosMessage = null;
     }
 }

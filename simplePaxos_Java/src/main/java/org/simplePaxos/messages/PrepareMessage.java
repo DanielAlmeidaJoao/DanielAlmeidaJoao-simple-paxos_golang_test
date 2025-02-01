@@ -23,18 +23,4 @@ public class PrepareMessage extends ProtoMessage {
         proposalNum = 0;
         term = 0;
     }
-    public static ISerializer<PrepareMessage> serializer = new ISerializer<PrepareMessage>() {
-
-        @Override
-        public void serialize(PrepareMessage prepareMessage, ByteBuf byteBuf) throws IOException {
-            byteBuf.writeInt(prepareMessage.proposalNum);
-            byteBuf.writeInt(prepareMessage.term);
-        }
-
-        @Override
-        public PrepareMessage deserialize(ByteBuf byteBuf) throws IOException {
-            return new PrepareMessage(byteBuf.readInt(),byteBuf.readInt());
-        }
-    };
-
 }

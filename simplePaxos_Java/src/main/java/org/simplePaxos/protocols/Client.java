@@ -43,6 +43,7 @@ public class Client extends GenericProtocolExtension {
     public Client(String protoName, short protoId) {
         super(protoName, protoId);
         peers = new HashSet<>();
+        currentTerm = 1;
     }
 
     @Override
@@ -76,7 +77,7 @@ public class Client extends GenericProtocolExtension {
 
         }
 
-        setupTimer(new ProposeTimer(),20*1000);
+        setupTimer(new ProposeTimer(),15*1000);
 
     }
 

@@ -2,6 +2,7 @@ package org.simplePaxos.protocols;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.simplePaxos.HelperAux;
 import org.simplePaxos.helperFiles.TermArguments;
 import org.simplePaxos.internalCommunicationMessages.ChannelCreatedRequest;
 import org.simplePaxos.messages.*;
@@ -54,18 +55,24 @@ public class AcceptProtocol extends GenericProtocolExtension  {
     }
     @MessageInHandlerAnnotation(PROTO_MESSAGE_ID = PrepareMessage.ID)
     private void uponPrepareMessage(MessageInEvent event, PrepareMessage prepareMessage) {
+        logger.info(self + " uponPrepareMessage "+prepareMessage.term+" proposalNum "+prepareMessage.proposalNum);
+
         TermArguments term = computeTerm(prepareMessage.term);
+        logger.info("uponPrepareMessage"+HelperAux.gson.toJson(term)+" "+HelperAux.gson.toJson(prepareMessage));
 
         if (term.promised_num < prepareMessage.proposalNum){
             term.promised_num = prepareMessage.proposalNum;
             term.remoteHost = event.getFrom();
             PromiseMessage promiseMessage = new PromiseMessage(term.accepted_num,prepareMessage.proposalNum,term.term,term.acceptedValue);
             sendMessage(promiseMessage,ProposeProtocol.ID,event.getFrom());
+            logger.info(self+" REPLYING TO "+event.getFrom());
         }
     }
 
     @MessageInHandlerAnnotation(PROTO_MESSAGE_ID = AcceptMessage.ID)
     private void uponAcceptMessage(MessageInEvent event, AcceptMessage acceptMessage) {
+        logger.info(self + " uponAcceptMessage "+acceptMessage.term);
+
         TermArguments term = computeTerm(acceptMessage.term);
         if ( term.promised_num < acceptMessage.proposalNum || (term.promised_num == acceptMessage.proposalNum && event.getFrom().equals(term.remoteHost) )){
             term.promised_num = acceptMessage.proposalNum;

@@ -50,6 +50,7 @@ public class ProposeProtocol extends GenericProtocolExtension {
         promises = 0;
         peers = new HashSet<>();
         random = new Random();
+        proposal_num = 0;
     }
 
     @Override
@@ -63,12 +64,18 @@ public class ProposeProtocol extends GenericProtocolExtension {
         if(request.getPaxosMessage() == null){
             return;
         }
+        currentValue = toPropose;
+        logger.info(self + " GOING TO PROPOSE "+request.getPaxosMessage().msgId);
+
         currentTerm = request.getPaxosMessage().term;
         if(toPropose.msgId == null){
             cancelTimer(timerId);
             timerId = -1;
             return;
         }
+
+        logger.info(self + " PROPOSED "+request.getPaxosMessage().msgId);
+
 
         if (timerId <= 0){
             timerId = setupPeriodicTimer(new ReproposeTimer(this.currentValue),1000*5,1000*6);
@@ -81,6 +88,8 @@ public class ProposeProtocol extends GenericProtocolExtension {
             for (Host peer : peers) {
                 sendMessage(prepareMessage,AcceptProtocol.PROTO_ID,peer);
             }
+            logger.info(self + " SENT "+request.getPaxosMessage().msgId);
+
         }
     }
 
@@ -108,30 +117,42 @@ public class ProposeProtocol extends GenericProtocolExtension {
 
     @MessageInHandlerAnnotation(PROTO_MESSAGE_ID = PromiseMessage.ID)
     public void onPromiseMessage(MessageInEvent event, PromiseMessage promiseMessage){
+        logger.info(self + " ON PROMISE "+promiseMessage);
+
+        logger.info(HelperAux.gson.toJson(promiseMessage)+" TERM:"+currentTerm+" pp "+event.getFrom());
+
         if (promiseMessage.term != currentTerm){
             return;
         }
         setPromiseValue(promiseMessage.acceptedValue);
         promises++;
-        if (promises == HelperAux.getMajority(peers.size())){
+        logger.info("MAJORITY: "+HelperAux.getMajority(peers.size()));
+        if (promises >= HelperAux.getMajority(peers.size())){
+            logger.info("RECEVEID MAJORITY");
             if (highestPromise == null){
                 highestPromise = currentValue;
             }
             if (highestPromise == null){
+                logger.info("DID NOT SEND AN ACCEPT!");
                 return;
             }
 
             highestPromise.term = currentTerm;
             acceptValueCount = highestPromise;
             AcceptMessage acceptMessage = new AcceptMessage(proposal_num,currentTerm,highestPromise);
+
             for (Host peer : peers) {
-                sendMessage(acceptMessage,AcceptProtocol.PROTO_ID,peer);
+                //sendMessage(acceptMessage,AcceptProtocol.PROTO_ID,peer);
             }
+            sendMessage(acceptMessage,AcceptProtocol.PROTO_ID,event.getFrom());
+
         }
     }
 
     @MessageInHandlerAnnotation(PROTO_MESSAGE_ID = AcceptMessage.ID)
     public void onAccepted(MessageInEvent event, AcceptMessage acceptMessage){
+        logger.info(self + " ON ACCPET ");
+
         if (currentTerm != acceptMessage.term || proposal_num !=acceptMessage.proposalNum){
             return;
         }

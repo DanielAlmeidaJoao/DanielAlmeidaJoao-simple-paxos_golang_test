@@ -1,5 +1,6 @@
 package org.simplePaxos;
 
+import com.google.gson.Gson;
 import pt.unl.fct.di.novasys.babel.channels.events.OnStreamConnectionUpEvent;
 import pt.unl.fct.di.novasys.network.data.Host;
 
@@ -10,6 +11,7 @@ import java.util.Set;
 
 public class HelperAux {
 
+    public static final Gson gson = new Gson();
     public static final MessageDigest md = getMessageDigest();
 
     public static MessageDigest getMessageDigest(){
