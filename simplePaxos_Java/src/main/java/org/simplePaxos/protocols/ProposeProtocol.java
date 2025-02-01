@@ -120,7 +120,9 @@ public class ProposeProtocol extends GenericProtocolExtension {
                 return;
             }
 
+            proposal_num = promiseMessage.promisedNum;
             highestPromise.term = currentTerm;
+            highestPromise.proposalNum = proposal_num;
             acceptValueCount = highestPromise;
             AcceptMessage acceptMessage = new AcceptMessage(proposal_num,currentTerm,highestPromise);
 
