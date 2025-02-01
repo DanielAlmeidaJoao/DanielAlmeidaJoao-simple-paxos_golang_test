@@ -50,18 +50,12 @@ public class LearnProto extends GenericProtocolExtension {
 
     @MessageInHandlerAnnotation(PROTO_MESSAGE_ID = DecidedMessage.ID)
     public void onDecided(MessageInEvent event, DecidedMessage decidedMessage){
-        logger.info(self + " ON DECIDED "+decidedMessage.paxosMessage.msgId);
-
         totalReceived++;
-        if (decidedMessage.paxosMessage.term >= currentTerm){
-            logger.info("DECISION TAKEN "+decidedMessage.paxosMessage.msgId);
-            DecidedMessage aux = decidedMessages.get(decidedMessage.term);
-            if (aux == null){
-                decidedMessages.put(decidedMessage.term,decidedMessage);
-                aux = decidedMessage;
-            }
+        if (decidedMessage.term >= currentTerm){
+            DecidedMessage aux = decidedMessage;
+            decidedMessages.put(decidedMessage.term,decidedMessage);
 
-            while (aux != null && aux.term == decidedMessage.term) {
+            while (aux != null && aux.term == currentTerm) {
                 decidedMessages.remove(aux.term);
                 currentTerm++;
                 final DecidedMessage notification = aux;

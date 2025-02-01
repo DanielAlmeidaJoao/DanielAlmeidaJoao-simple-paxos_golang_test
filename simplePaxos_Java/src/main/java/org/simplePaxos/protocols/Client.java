@@ -1,5 +1,7 @@
 package org.simplePaxos.protocols;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.simplePaxos.HelperAux;
 import org.simplePaxos.internalCommunicationMessages.ChannelCreatedRequest;
 import org.simplePaxos.internalCommunicationMessages.LearnRequest;
@@ -19,17 +21,13 @@ import pt.unl.fct.di.novasys.network.data.Host;
 
 import java.io.IOException;
 import java.net.InetAddress;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Properties;
-import java.util.Set;
-import java.util.logging.Logger;
+import java.util.*;
 
 import static javax.xml.crypto.dsig.DigestMethod.SHA256;
 
 public class Client extends GenericProtocolExtension {
     public static final short ID = 763;
-    public static final Logger log = Logger.getLogger(Client.class.getName());
+    private static final Logger log = LogManager.getLogger(Client.class);
 
     List<PaxosMessage> ops;
     int count;
@@ -44,6 +42,8 @@ public class Client extends GenericProtocolExtension {
         super(protoName, protoId);
         peers = new HashSet<>();
         currentTerm = 1;
+        ops = new LinkedList<>();
+        count = 0;
     }
 
     @Override
@@ -77,8 +77,9 @@ public class Client extends GenericProtocolExtension {
 
         }
 
-        setupTimer(new ProposeTimer(),15*1000);
-
+        setupTimer(new ProposeTimer(),10*1000);
+        setupPeriodicTimer(new HashResultPrinterTimer(),5*1000,5*1000);
+        setupPeriodicTimer(new ProposeTimer(),5*1000,500);
     }
 
     public PaxosMessage nextMessage(){
@@ -86,7 +87,7 @@ public class Client extends GenericProtocolExtension {
             start = System.currentTimeMillis();
         }
         count++;
-        if (count > 2){
+        if (count > 1000){
             log.info(self+" -- ELAPSED IS -- : "+(System.currentTimeMillis()-start));
             return null;
         }
@@ -99,35 +100,40 @@ public class Client extends GenericProtocolExtension {
 
     public void appendMap(){
         int size = ops.size();
-        log.info(String.format("< %s %d >",self.toString(),size));
         StringBuilder stringBuffer = new StringBuilder();
         for (PaxosMessage op : ops) {
             stringBuffer.append(op.msgValue);
         }
-        log.info(self+"__"+HelperAux.digest(stringBuffer.toString()));
+        log.info(self+"__"+size+"__"+HelperAux.digest(stringBuffer.toString()));
     }
 
     void printResultsPeriodically(HashResultPrinterTimer timer, long timerId){
         appendMap();
     }
     public void timeHandler(ProposeTimer proposeTimer, long timer){
-        sendRequest(new ProposeRequest(nextMessage()),ProposeProtocol.ID);
+        if(lastProposed == null){
+            lastProposed = nextMessage();
+        }
+        if(lastProposed == null){
+            super.cancelTimer(timer);
+            return;
+        }
+        sendRequest(new ProposeRequest(lastProposed),ProposeProtocol.ID);
     }
 
-    @RequestHandlerAnnotation(REQUEST_ID = ID)
+    @RequestHandlerAnnotation(REQUEST_ID = LearnRequest.REQUEST_ID)
     public void onRequest(LearnRequest request, short from){
+        log.info("DECISION TAKEN "+request.decidedMessage.paxosMessage.msgId);
         PaxosMessage value = request.decidedMessage.paxosMessage;
         if(currentTerm == request.decidedMessage.term){
             currentTerm++;
         }
         ops.add(request.decidedMessage.paxosMessage);
-        if (lastProposed != null && lastProposed.msgId.equals(request.decidedMessage.paxosMessage.msgId)){
+        if (lastProposed != null && lastProposed.msgId.equals(value.msgId)){
             lastProposed = nextMessage();
         }
 
-        if (lastProposed == null){
-            sendRequest(new ProposeRequest(new PaxosMessage(null,null,value.proposalNum,value.term,0)),ProposeProtocol.ID);
-        } else {
+        if (lastProposed != null){
             lastProposed.term = currentTerm;
             lastProposed.proposalNum = request.decidedMessage.proposalNum;
             sendRequest(new ProposeRequest(lastProposed),ProposeProtocol.ID);

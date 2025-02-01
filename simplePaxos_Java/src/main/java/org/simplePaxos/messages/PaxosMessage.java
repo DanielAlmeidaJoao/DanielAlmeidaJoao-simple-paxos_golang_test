@@ -32,10 +32,4 @@ public class PaxosMessage extends ProtoMessage {
     public PaxosMessage(short id) {
         super(id);
     }
-
-    @Override
-    public <V extends ProtoMessage> ProtoMessage getNewEmptyInstance() {
-        return new PaxosMessage();
-    }
-
 }

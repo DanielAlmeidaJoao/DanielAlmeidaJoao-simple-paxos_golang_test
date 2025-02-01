@@ -22,9 +22,4 @@ public class DecidedMessage extends ProtoMessage {
     public DecidedMessage() {
         super(ID);
     }
-
-    @Override
-    public <V extends ProtoMessage> ProtoMessage getNewEmptyInstance() {
-        return null;
-    }
 }
