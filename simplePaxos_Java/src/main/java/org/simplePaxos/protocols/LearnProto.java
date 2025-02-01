@@ -1,11 +1,15 @@
 package org.simplePaxos.protocols;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.simplePaxos.HelperAux;
+import org.simplePaxos.internalCommunicationMessages.ChannelCreatedRequest;
 import org.simplePaxos.internalCommunicationMessages.LearnRequest;
 import org.simplePaxos.messages.DecidedMessage;
 import org.simplePaxos.messages.PaxosMessage;
 import pt.unl.fct.di.novasys.babel.annotations.ChannelEventHandlerAnnotation;
 import pt.unl.fct.di.novasys.babel.annotations.MessageInHandlerAnnotation;
+import pt.unl.fct.di.novasys.babel.annotations.RequestHandlerAnnotation;
 import pt.unl.fct.di.novasys.babel.channels.events.OnConnectionDownEvent;
 import pt.unl.fct.di.novasys.babel.channels.events.OnMessageConnectionUpEvent;
 import pt.unl.fct.di.novasys.babel.core.GenericProtocolExtension;
@@ -16,15 +20,13 @@ import pt.unl.fct.di.novasys.network.data.Host;
 
 import java.io.IOException;
 import java.net.InetAddress;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
-import java.util.logging.Logger;
+import java.util.*;
 
 public class LearnProto extends GenericProtocolExtension {
 
-    private static Logger logger = Logger.getLogger(LearnProto.class.getName());
+    private static final Logger logger = LogManager.getLogger(LearnProto.class);
+    public static final short ID = 972;
+
     private PaxosMessage paxosMessage;
     private Host self;
     private int currentTerm;
@@ -35,28 +37,21 @@ public class LearnProto extends GenericProtocolExtension {
 
     public LearnProto(String protoName, short protoId) {
         super(protoName, protoId);
-
+        peers = new HashSet<>();
     }
 
     @Override
     public void init(Properties properties) throws HandlerRegistrationException, IOException {
         totalReceived = 0;
-        String port = properties.getProperty("NETWORK_PORT");
-        String address = properties.getProperty("NETWORK_ADDRESS");
-        self = new Host(InetAddress.getByName(address),Integer.parseInt(port));
         currentTerm = 1;
         decidedMessages = new HashMap<>();
-        try {
-            peers = HelperAux.getNeighbors(properties.getProperty("NETWORK_PEERS"));
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
     }
 
     @MessageInHandlerAnnotation(PROTO_MESSAGE_ID = DecidedMessage.ID)
     public void onDecided(MessageInEvent event, DecidedMessage decidedMessage){
         totalReceived++;
         if (decidedMessage.paxosMessage.term >= currentTerm){
+            logger.info("DECISION TAKEN "+decidedMessage.paxosMessage.msgId);
             DecidedMessage aux = decidedMessages.get(decidedMessage.term);
             if (aux == null){
                 decidedMessages.put(decidedMessage.term,decidedMessage);
@@ -85,6 +80,13 @@ public class LearnProto extends GenericProtocolExtension {
     public void onConnectionDown(OnConnectionDownEvent event, int channelId){
         peers.remove(event.getNode());
         logger.info( self + ". CONNECTION IS DOWN: "+event.getNode());
+    }
+
+    @RequestHandlerAnnotation(REQUEST_ID = ChannelCreatedRequest.ID)
+    public void onChannelCreated(ChannelCreatedRequest request, short from){
+        logger.info("CHANNEL CREATED "+request.channel);
+        self = request.host;
+        registerSharedChannel(request.channel);
     }
 
 

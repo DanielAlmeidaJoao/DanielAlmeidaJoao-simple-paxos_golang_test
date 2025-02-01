@@ -3,9 +3,11 @@ package org.simplePaxos.protocols;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.simplePaxos.helperFiles.TermArguments;
+import org.simplePaxos.internalCommunicationMessages.ChannelCreatedRequest;
 import org.simplePaxos.messages.*;
 import pt.unl.fct.di.novasys.babel.annotations.ChannelEventHandlerAnnotation;
 import pt.unl.fct.di.novasys.babel.annotations.MessageInHandlerAnnotation;
+import pt.unl.fct.di.novasys.babel.annotations.RequestHandlerAnnotation;
 import pt.unl.fct.di.novasys.babel.channels.events.OnConnectionDownEvent;
 import pt.unl.fct.di.novasys.babel.channels.events.OnMessageConnectionUpEvent;
 import pt.unl.fct.di.novasys.babel.core.GenericProtocolExtension;
@@ -35,29 +37,12 @@ public class AcceptProtocol extends GenericProtocolExtension  {
         super(protoName, PROTO_ID);
         peers = new HashSet<>();
         totalSent = 0;
-
-        //TODO after starting, connect to all clients
-        String [] contacts = properties.getProperty("contacts").split(";");
-        for (String contact : contacts) {
-            String [] splittedAddress = contact.split(":");
-            Host h = new Host(InetAddress.getByName(splittedAddress[0]),Integer.parseInt(splittedAddress[1]));
-            peers.add(h);
-        }
-
-        String address = properties.getProperty("address");
-        String port = properties.getProperty("port");
-        self = new Host(InetAddress.getByName(address),Integer.parseInt(port));
-
-        Properties channelProps = NewChannelsFactoryUtils.tcpChannelProperties(address,port);
-        channel = createChannel(BabelTCP_P2P_Channel.CHANNEL_NAME,channelProps);
+        terms = new HashMap<>();
     }
 
     @Override
     public void init(Properties properties) throws HandlerRegistrationException, IOException {
         logger.info("Accept Protocol Started for: ",self);
-    }
-
-    private void uponIHaveFileMessage(PaxosMessage msg, Host from, short sourceProto, int channelId, String connectionId) {
     }
 
     private TermArguments computeTerm(int term){
@@ -75,7 +60,7 @@ public class AcceptProtocol extends GenericProtocolExtension  {
             term.promised_num = prepareMessage.proposalNum;
             term.remoteHost = event.getFrom();
             PromiseMessage promiseMessage = new PromiseMessage(term.accepted_num,prepareMessage.proposalNum,term.term,term.acceptedValue);
-            sendMessage(promiseMessage,event.connectionId);
+            sendMessage(promiseMessage,ProposeProtocol.ID,event.getFrom());
         }
     }
 
@@ -87,7 +72,7 @@ public class AcceptProtocol extends GenericProtocolExtension  {
             term.accepted_num = acceptMessage.proposalNum;
             term.acceptedValue = acceptMessage.paxosMessage;
             term.remoteHost = event.getFrom();
-            sendMessage(acceptMessage,event.connectionId);
+            sendMessage(acceptMessage,ProposeProtocol.ID,event.getFrom());
             totalSent++;
         }
     }
@@ -102,7 +87,11 @@ public class AcceptProtocol extends GenericProtocolExtension  {
             term.promised_num = acceptMessage.proposalNum;
             term.accepted_num = acceptMessage.proposalNum;
             term.acceptedValue = acceptMessage.paxosMessage;
-            term.remoteHost = from;
+            term.remoteHost ={
+            lastProposed.term = currentTerm;
+            lastProposed.proposalNum = request.decidedMessage.proposalNum;
+            sendRequest(new ProposeRequest(lastProposed),ProposeProtocol.ID);
+        } from;
             sendMessage(acceptMessage,connectionId);
             totalSent++;
         }**/
@@ -118,5 +107,12 @@ public class AcceptProtocol extends GenericProtocolExtension  {
     private void uponMessageConnectionUp(OnMessageConnectionUpEvent event, int channelId) {
         logger.info("{} MESSAGE CONNECTION TO {} IS UP.",channelId,event.getNode());
         peers.add(event.getNode());
+    }
+
+    @RequestHandlerAnnotation(REQUEST_ID = ChannelCreatedRequest.ID)
+    public void onChannelCreated(ChannelCreatedRequest request, short from){
+        logger.info("CHANNEL CREATED "+request.channel);
+        self = request.host;
+        registerSharedChannel(request.channel);
     }
 }

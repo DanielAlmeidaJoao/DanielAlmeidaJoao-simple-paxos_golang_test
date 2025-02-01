@@ -18,6 +18,11 @@ public class PrepareMessage extends ProtoMessage {
         this.term = term;
     }
 
+    public PrepareMessage(){
+        super(ID);
+        proposalNum = 0;
+        term = 0;
+    }
     public static ISerializer<PrepareMessage> serializer = new ISerializer<PrepareMessage>() {
 
         @Override

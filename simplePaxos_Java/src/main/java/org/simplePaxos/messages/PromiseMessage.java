@@ -22,4 +22,7 @@ public class PromiseMessage extends ProtoMessage {
         this.term = term;
         this.acceptedValue = acceptedValue;
     }
+    public PromiseMessage(){
+        super(ID);
+    }
 }

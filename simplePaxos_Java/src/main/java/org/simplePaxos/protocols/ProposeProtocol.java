@@ -3,6 +3,7 @@ package org.simplePaxos.protocols;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.simplePaxos.HelperAux;
+import org.simplePaxos.internalCommunicationMessages.ChannelCreatedRequest;
 import org.simplePaxos.internalCommunicationMessages.ProposeRequest;
 import org.simplePaxos.messages.*;
 import org.simplePaxos.timers.ReproposeTimer;
@@ -18,6 +19,7 @@ import pt.unl.fct.di.novasys.network.data.Host;
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.util.HashSet;
 import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
@@ -25,6 +27,8 @@ import java.util.Set;
 public class ProposeProtocol extends GenericProtocolExtension {
 
     private static final Logger logger = LogManager.getLogger(ProposeProtocol.class);
+
+    public static final short ID = 123;
 
     private PaxosMessage currentValue;
     private PaxosMessage highestPromise;
@@ -44,21 +48,21 @@ public class ProposeProtocol extends GenericProtocolExtension {
         super(protoName, protoId);
         currentTerm = 1;
         promises = 0;
-
+        peers = new HashSet<>();
+        random = new Random();
     }
 
     @Override
     public void init(Properties properties) throws HandlerRegistrationException, IOException {
-        String port = properties.getProperty("NETWORK_PORT");
-        String address = properties.getProperty("NETWORK_ADDRESS");
-        self = new Host(InetAddress.getByName(address),Integer.parseInt(port));
         registerTimerHandler(ReproposeTimer.ID, this::reproposeTimer);
-
     }
 
     @RequestHandlerAnnotation(REQUEST_ID = ProposeRequest.ID)
     private void onProposeRequest(ProposeRequest request, short from){
         PaxosMessage toPropose = request.getPaxosMessage();
+        if(request.getPaxosMessage() == null){
+            return;
+        }
         currentTerm = request.getPaxosMessage().term;
         if(toPropose.msgId == null){
             cancelTimer(timerId);
@@ -75,7 +79,7 @@ public class ProposeProtocol extends GenericProtocolExtension {
             promises = 0;
             acks = 0;
             for (Host peer : peers) {
-                sendMessage(prepareMessage,peer);
+                sendMessage(prepareMessage,AcceptProtocol.PROTO_ID,peer);
             }
         }
     }
@@ -121,7 +125,7 @@ public class ProposeProtocol extends GenericProtocolExtension {
             acceptValueCount = highestPromise;
             AcceptMessage acceptMessage = new AcceptMessage(proposal_num,currentTerm,highestPromise);
             for (Host peer : peers) {
-                sendMessage(acceptMessage,peer);
+                sendMessage(acceptMessage,AcceptProtocol.PROTO_ID,peer);
             }
         }
     }
@@ -137,7 +141,7 @@ public class ProposeProtocol extends GenericProtocolExtension {
             acks = 0;
             DecidedMessage decidedMessage = new DecidedMessage(proposal_num,currentTerm,acceptValueCount);
             for (Host peer : peers) {
-                sendMessage(decidedMessage,peer);
+                sendMessage(decidedMessage,LearnProto.ID,peer);
             }
         }
     }
@@ -152,6 +156,13 @@ public class ProposeProtocol extends GenericProtocolExtension {
     private void uponMessageConnectionUp(OnMessageConnectionUpEvent event, int channelId) {
         logger.info("{} MESSAGE CONNECTION TO {} IS UP.",channelId,event.getNode());
         peers.add(event.getNode());
+    }
+
+    @RequestHandlerAnnotation(REQUEST_ID = ChannelCreatedRequest.ID)
+    public void onChannelCreated(ChannelCreatedRequest request, short from){
+        logger.info("CHANNEL CREATED "+request.channel);
+        self = request.host;
+        registerSharedChannel(request.channel);
     }
 
 }
