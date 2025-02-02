@@ -83,7 +83,7 @@ public class Client extends GenericProtocolExtension {
         }
 
         setupTimer(ProposeTimer.ID,10*1000);
-        setupPeriodicTimer(ProposeTimer.ID,5*1000,500);
+        setupPeriodicTimer(ProposeTimer.ID,5*1000,250);
         setupPeriodicTimer(HashResultPrinterTimer.ID,5*1000,5*1000);
     }
 
@@ -92,7 +92,7 @@ public class Client extends GenericProtocolExtension {
             start = System.currentTimeMillis();
         }
         if (count > 1000){
-            setupTimer(new FinishTimer(),30*1000);
+            setupTimer(FinishTimer.ID,30*1000);
             return null;
         } else {
             count++;
