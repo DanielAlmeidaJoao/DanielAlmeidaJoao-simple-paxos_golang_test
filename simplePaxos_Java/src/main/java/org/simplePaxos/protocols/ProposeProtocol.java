@@ -57,10 +57,10 @@ public class ProposeProtocol extends GenericProtocolExtension {
     @RequestHandlerAnnotation(REQUEST_ID = ProposeRequest.ID)
     private void onProposeRequest(ProposeRequest request, short from){
         PaxosMessage toPropose = request.getPaxosMessage();
-        if(request.getPaxosMessage() == null || currentTerm > request.getPaxosMessage().term){
+        if(request.getPaxosMessage() == null || currentTerm > request.term){
             return;
         }
-        if(currentTerm !=request.getPaxosMessage().term){
+        if(currentTerm !=request.term){
             promises = 0;
             acks = 0;
         }
@@ -69,12 +69,11 @@ public class ProposeProtocol extends GenericProtocolExtension {
         currentValue = toPropose;
         //logger.info(self+ "__ GOING TO PROPOSE "+HelperAux.gson.toJson(toPropose));
 
-        currentTerm = request.getPaxosMessage().term;
+        currentTerm = request.term;
 
         proposal_num = (1+random.nextInt(100));
 
-        toPropose.proposalNum = proposal_num;
-        PrepareMessage prepareMessage = new PrepareMessage(proposal_num,toPropose.term);
+        PrepareMessage prepareMessage = new PrepareMessage(proposal_num,request.term);
 
         for (Host peer : peers) {
             sendMessage(prepareMessage,AcceptProtocol.PROTO_ID,peer);
@@ -96,8 +95,6 @@ public class ProposeProtocol extends GenericProtocolExtension {
                 if(highestPromise.acceptedValue == null){
                     highestPromise.acceptedValue = currentValue;
                 }
-                highestPromise.acceptedValue.proposalNum = proposal_num;
-                highestPromise.acceptedValue.term = currentTerm;
 
                 AcceptMessage acceptMessage = new AcceptMessage(proposal_num,currentTerm,highestPromise.acceptedValue);
                 for (Host peer : peers) {

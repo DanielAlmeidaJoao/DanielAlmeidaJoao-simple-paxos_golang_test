@@ -13,17 +13,11 @@ public class PaxosMessage extends ProtoMessage {
 
     public String msgId;
     public String msgValue;
-    public int proposalNum;
-    public int term;
-    public int decidedCount;
 
-    public PaxosMessage(String msgValue, String msgId, int proposalNum, int term, int decidedCount) {
+    public PaxosMessage(String msgValue, String msgId) {
         super(ID);
         this.msgValue = msgValue;
         this.msgId = msgId;
-        this.proposalNum = proposalNum;
-        this.term = term;
-        this.decidedCount = decidedCount;
     }
     public PaxosMessage() {
         super(ID);

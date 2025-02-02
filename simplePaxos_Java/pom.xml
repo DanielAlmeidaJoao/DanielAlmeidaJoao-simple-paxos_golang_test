@@ -12,7 +12,7 @@
         <dependency>
             <groupId>org.bena</groupId>
             <artifactId>bena</artifactId>
-            <version>2.30.0</version>
+            <version>3.0.0</version>
         </dependency>
     </dependencies>
 

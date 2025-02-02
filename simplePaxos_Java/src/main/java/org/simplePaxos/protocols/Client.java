@@ -101,7 +101,7 @@ public class Client extends GenericProtocolExtension {
             return lastProposed;
         }
         String msgValue = self+"_"+count;
-        return new PaxosMessage(msgValue,msgValue,0,currentTerm,0);
+        return new PaxosMessage(msgValue,msgValue);
 
     }
 
@@ -127,7 +127,7 @@ public class Client extends GenericProtocolExtension {
         if(lastProposed == null){
             super.cancelTimer(timer);
         } else {
-            sendRequest(new ProposeRequest(lastProposed),ProposeProtocol.ID);
+            sendRequest(new ProposeRequest(lastProposed,0,currentTerm),ProposeProtocol.ID);
         }
     }
 
@@ -154,9 +154,7 @@ public class Client extends GenericProtocolExtension {
                 lastProposed = nextMessage();
             }
             if(lastProposed != null){
-                lastProposed.term = currentTerm;
-                lastProposed.proposalNum = request.decidedMessage.proposalNum;
-                sendRequest(new ProposeRequest(lastProposed),ProposeProtocol.ID);
+                sendRequest(new ProposeRequest(lastProposed,request.decidedMessage.proposalNum,currentTerm),ProposeProtocol.ID);
             } else {
                 log.info(self+" -- ELAPSED IS -- : "+(System.currentTimeMillis()-start));
             }
