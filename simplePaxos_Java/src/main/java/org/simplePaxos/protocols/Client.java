@@ -40,6 +40,7 @@ public class Client extends GenericProtocolExtension {
     long start;
     private Set<Host> peers;
     int channel;
+    long periodicProposeTimer;
 
     public Client(String protoName, short protoId) {
         super(protoName, protoId);
@@ -90,18 +91,19 @@ public class Client extends GenericProtocolExtension {
         if (start == 0){
             start = System.currentTimeMillis();
         }
-        count++;
         if (count > 1000){
-            log.info(self+" -- ELAPSED IS -- : "+(System.currentTimeMillis()-start));
             setupTimer(new FinishTimer(),30*1000);
             return null;
+        } else {
+            count++;
+        }
+        if(lastProposed != null){
+            return lastProposed;
         }
         String msgValue = self+"_"+count;
         return new PaxosMessage(msgValue,msgValue,0,currentTerm,0);
 
     }
-
-
 
     public void appendMap(){
         int size = ops.size();
@@ -109,7 +111,7 @@ public class Client extends GenericProtocolExtension {
         for (PaxosMessage op : ops) {
             stringBuffer.append(op.msgValue);
         }
-        log.info(self+"__"+size+"__"+HelperAux.digest(stringBuffer.toString()));
+        log.info(count+": "+self+"__"+size+"__"+HelperAux.digest(stringBuffer.toString()));
     }
 
     @TimerEventHandlerAnnotation(TIMER_ID = HashResultPrinterTimer.ID)
@@ -124,9 +126,9 @@ public class Client extends GenericProtocolExtension {
         }
         if(lastProposed == null){
             super.cancelTimer(timer);
-            return;
+        } else {
+            sendRequest(new ProposeRequest(lastProposed),ProposeProtocol.ID);
         }
-        sendRequest(new ProposeRequest(lastProposed),ProposeProtocol.ID);
     }
 
     @TimerEventHandlerAnnotation(TIMER_ID = FinishTimer.ID)
@@ -137,20 +139,27 @@ public class Client extends GenericProtocolExtension {
 
     @RequestHandlerAnnotation(REQUEST_ID = LearnRequest.REQUEST_ID)
     public void onRequest(LearnRequest request, short from){
-        log.info("DECISION TAKEN "+request.decidedMessage.paxosMessage.msgId);
         PaxosMessage value = request.decidedMessage.paxosMessage;
         if(currentTerm == request.decidedMessage.term){
             currentTerm++;
+        } else {
+            return;
         }
+        cancelTimer(periodicProposeTimer);
         ops.add(request.decidedMessage.paxosMessage);
-        if (lastProposed != null && lastProposed.msgId.equals(value.msgId)){
-            lastProposed = nextMessage();
-        }
-
-        if (lastProposed != null){
-            lastProposed.term = currentTerm;
-            lastProposed.proposalNum = request.decidedMessage.proposalNum;
-            sendRequest(new ProposeRequest(lastProposed),ProposeProtocol.ID);
+        if (lastProposed!=null){
+            if(lastProposed.msgId.equals(value.msgId)){
+                log.info(self+". TERM "+currentTerm+ ". DECISION TAKEN "+request.decidedMessage.paxosMessage.msgId);
+                lastProposed = null;
+                lastProposed = nextMessage();
+            }
+            if(lastProposed != null){
+                lastProposed.term = currentTerm;
+                lastProposed.proposalNum = request.decidedMessage.proposalNum;
+                sendRequest(new ProposeRequest(lastProposed),ProposeProtocol.ID);
+            } else {
+                log.info(self+" -- ELAPSED IS -- : "+(System.currentTimeMillis()-start));
+            }
         }
     }
 
