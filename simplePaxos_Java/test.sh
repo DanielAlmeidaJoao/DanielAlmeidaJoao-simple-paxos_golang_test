@@ -1,12 +1,19 @@
-clear
+#!/bin/bash
 
-java -cp simplePaxos.jar Main address=127.0.0.1 port=8080 &
-java -cp simplePaxos.jar Main address=127.0.0.1 port=8081 &
-java -cp simplePaxos.jar Main address=127.0.0.1 port=8082 &
+clear
+# Start processes in the background and store their PIDs
+java -cp simplePaxos.jar Main address=127.0.0.1 port=8080 &  
+PID1=$!  
+java -cp simplePaxos.jar Main address=127.0.0.1 port=8081 &  
+PID2=$!  
+java -cp simplePaxos.jar Main address=127.0.0.1 port=8082 &  
+PID3=$!  
 
 # Wait for user input
 echo "Press Enter to terminate all processes"
-read -r
+read -r  
 
-# Terminate all background processes
-pkill -f "java 127.0.0.1"
+# Kill all background processes
+kill $PID1 $PID2 $PID3
+
+echo "All processes terminated."

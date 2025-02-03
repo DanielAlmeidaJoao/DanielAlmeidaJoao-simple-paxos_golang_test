@@ -41,6 +41,7 @@ public class Client extends GenericProtocolExtension {
     private Set<Host> peers;
     int channel;
     long periodicProposeTimer;
+    long timerId = -1;
 
     public Client(String protoName, short protoId) {
         super(protoName, protoId);
