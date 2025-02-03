@@ -84,7 +84,7 @@ public class Client extends GenericProtocolExtension {
         }
 
         setupTimer(ProposeTimer.ID,10*1000);
-        setupPeriodicTimer(ProposeTimer.ID,5*1000,250);
+        //setupPeriodicTimer(ProposeTimer.ID,5*1000,250);
         setupPeriodicTimer(HashResultPrinterTimer.ID,5*1000,5*1000);
     }
 
@@ -128,7 +128,9 @@ public class Client extends GenericProtocolExtension {
         if(lastProposed == null){
             super.cancelTimer(timer);
         } else {
+            super.cancelTimer(timer);
             sendRequest(new ProposeRequest(lastProposed,0,currentTerm),ProposeProtocol.ID);
+            timerId = setupTimer(ProposeTimer.ID,200);
         }
     }
 
@@ -146,7 +148,7 @@ public class Client extends GenericProtocolExtension {
         } else {
             return;
         }
-        cancelTimer(periodicProposeTimer);
+        cancelTimer(timerId);
         ops.add(request.decidedMessage.paxosMessage);
         if (lastProposed!=null){
             if(lastProposed.msgId.equals(value.msgId)){
@@ -156,6 +158,7 @@ public class Client extends GenericProtocolExtension {
             }
             if(lastProposed != null){
                 sendRequest(new ProposeRequest(lastProposed,request.decidedMessage.proposalNum,currentTerm),ProposeProtocol.ID);
+                timerId = setupTimer(ProposeTimer.ID,200);
             } else {
                 log.info(self+" -- ELAPSED IS -- : "+(System.currentTimeMillis()-start));
             }
