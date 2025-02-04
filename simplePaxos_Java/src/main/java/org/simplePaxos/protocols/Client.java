@@ -17,7 +17,6 @@ import pt.unl.fct.di.novasys.babel.channels.events.OnConnectionDownEvent;
 import pt.unl.fct.di.novasys.babel.channels.events.OnMessageConnectionUpEvent;
 import pt.unl.fct.di.novasys.babel.core.GenericProtocolExtension;
 import pt.unl.fct.di.novasys.babel.exceptions.HandlerRegistrationException;
-import pt.unl.fct.di.novasys.babel.generic.ProtoTimer;
 import pt.unl.fct.di.novasys.network.ChannelLogicsWithNetty.NettyTCPChannel.utils.NewChannelsFactoryUtils;
 import pt.unl.fct.di.novasys.network.babelChannels.babelNewChannels.tcpChannels.BabelTCP_P2P_Channel;
 import pt.unl.fct.di.novasys.network.data.Host;
@@ -25,8 +24,6 @@ import pt.unl.fct.di.novasys.network.data.Host;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.util.*;
-
-import static javax.xml.crypto.dsig.DigestMethod.SHA256;
 
 public class Client extends GenericProtocolExtension {
     public static final short ID = 763;
@@ -43,7 +40,7 @@ public class Client extends GenericProtocolExtension {
     long periodicProposeTimer;
     long timerId = -1;
     int proposalNumber;
-    PaxosMessage lastMessageReceived;
+    PaxosMessage lastSentMessage;
 
     public Client(String protoName, short protoId) {
         super(protoName, protoId);
@@ -99,7 +96,7 @@ public class Client extends GenericProtocolExtension {
         String msgValue = self+"_"+count;
         lastProposed = new PaxosMessage(msgValue,msgValue);
         sent.add(lastProposed.msgId);
-        lastMessageReceived = lastProposed;
+        lastSentMessage = lastProposed;
         return lastProposed;
 
     }
@@ -122,7 +119,7 @@ public class Client extends GenericProtocolExtension {
     public void timeHandler(long timer){
         nextMessage();
         if(lastProposed == null){
-            log.info(count+"__"+self+" -- ELAPSED IS -- : "+(System.currentTimeMillis()-start)+" TERM: "+currentTerm+" __ "+sent.size());
+            cancelTimer(timerId);
         } else {
             sendRequest(new ProposeRequest(lastProposed,proposalNumber,currentTerm),ProposeProtocol.ID);
         }
@@ -146,8 +143,8 @@ public class Client extends GenericProtocolExtension {
             ops.add(request.decidedMessage.paxosMessage);
 
             if (lastProposed!=null && lastProposed.msgId.equals(value.msgId)){
-                if(count > 1000 && lastMessageReceived.msgId.equals(lastProposed.msgId) ){
-                    log.info(self+". TERM "+currentTerm+ ". DECISION TAKEN "+request.decidedMessage.paxosMessage.msgId+" :::  "+lastMessageReceived.msgId);
+                if(count > 1000 && lastSentMessage.msgId.equals(lastProposed.msgId) ){
+                    log.info(count+"__"+self+" -- ELAPSED IS -- : "+(System.currentTimeMillis()-start)+" TERM: "+currentTerm+" __ "+sent.size());
                 }
                 sent.remove(lastProposed.msgId);
                 lastProposed = null;

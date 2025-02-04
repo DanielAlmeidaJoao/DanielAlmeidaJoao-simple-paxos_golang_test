@@ -66,7 +66,6 @@ public class ProposeProtocol extends GenericProtocolExtension {
         PaxosMessage toPropose = request.getPaxosMessage();
 
         if(request.getPaxosMessage() == null || currentTerm > request.term){
-            logger.info(self+" "+currentTerm+" <-- currentTerm __ request.term ->"+request.term+currentValue);
             return;
         }
         setupTimer(ProposeTimer.ID,200);
