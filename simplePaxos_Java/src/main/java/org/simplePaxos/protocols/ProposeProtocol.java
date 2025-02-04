@@ -6,10 +6,12 @@ import org.simplePaxos.HelperAux;
 import org.simplePaxos.internalCommunicationMessages.ChannelCreatedRequest;
 import org.simplePaxos.internalCommunicationMessages.ProposeRequest;
 import org.simplePaxos.messages.*;
+import org.simplePaxos.timers.ProposeTimer;
 import org.simplePaxos.timers.ReproposeTimer;
 import pt.unl.fct.di.novasys.babel.annotations.ChannelEventHandlerAnnotation;
 import pt.unl.fct.di.novasys.babel.annotations.MessageInHandlerAnnotation;
 import pt.unl.fct.di.novasys.babel.annotations.RequestHandlerAnnotation;
+import pt.unl.fct.di.novasys.babel.annotations.TimerEventHandlerAnnotation;
 import pt.unl.fct.di.novasys.babel.channels.events.OnConnectionDownEvent;
 import pt.unl.fct.di.novasys.babel.channels.events.OnMessageConnectionUpEvent;
 import pt.unl.fct.di.novasys.babel.core.GenericProtocolExtension;
@@ -54,16 +56,22 @@ public class ProposeProtocol extends GenericProtocolExtension {
     public void init(Properties properties) throws HandlerRegistrationException, IOException {
     }
 
+    @TimerEventHandlerAnnotation(TIMER_ID = ProposeTimer.ID)
+    public void timeHandler(long timer){
+        ProposeRequest request = new ProposeRequest(currentValue,proposal_num,currentTerm);
+        onProposeRequest(request,ID);
+    }
     @RequestHandlerAnnotation(REQUEST_ID = ProposeRequest.ID)
     private void onProposeRequest(ProposeRequest request, short from){
         PaxosMessage toPropose = request.getPaxosMessage();
+
         if(request.getPaxosMessage() == null || currentTerm > request.term){
+            logger.info(self+" "+currentTerm+" <-- currentTerm __ request.term ->"+request.term+currentValue);
             return;
         }
-        if(currentTerm !=request.term){
-            promises = 0;
-            acks = 0;
-        }
+        setupTimer(ProposeTimer.ID,200);
+        promises = 0;
+        acks = 0;
         highestPromise = null;
 
         currentValue = toPropose;
@@ -71,7 +79,7 @@ public class ProposeProtocol extends GenericProtocolExtension {
 
         currentTerm = request.term;
 
-        proposal_num = (1+random.nextInt(100));
+        proposal_num += (1+random.nextInt(10));
 
         PrepareMessage prepareMessage = new PrepareMessage(proposal_num,request.term);
 
@@ -83,9 +91,7 @@ public class ProposeProtocol extends GenericProtocolExtension {
     @MessageInHandlerAnnotation(PROTO_MESSAGE_ID = PromiseMessage.ID)
     public void onPromiseMessage(MessageInEvent event, PromiseMessage promiseMessage){
         if (promiseMessage.term == currentTerm && proposal_num==promiseMessage.promisedNum){
-            if (highestPromise == null){
-                highestPromise = promiseMessage;
-            } else if (promiseMessage.term != highestPromise.term || promiseMessage.acceptedNum>highestPromise.acceptedNum){
+            if (highestPromise == null || promiseMessage.acceptedNum>highestPromise.acceptedNum){
                 highestPromise = promiseMessage;
             }
             promises++;
@@ -112,6 +118,9 @@ public class ProposeProtocol extends GenericProtocolExtension {
                 acks = 0;
                 DecidedMessage decidedMessage = new DecidedMessage(proposal_num,currentTerm,acceptMessage.paxosMessage);
                 currentTerm++;
+                if(currentValue != null &&  highestPromise.acceptedValue.msgId.equals(currentValue.msgId)){
+                    currentValue=null;
+                }
                 highestPromise=null;
                 for (Host peer : peers) {
                     sendMessage(decidedMessage,LearnProto.ID,peer);

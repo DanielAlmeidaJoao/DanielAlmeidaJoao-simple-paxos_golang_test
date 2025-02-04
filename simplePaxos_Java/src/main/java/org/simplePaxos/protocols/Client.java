@@ -42,6 +42,8 @@ public class Client extends GenericProtocolExtension {
     int channel;
     long periodicProposeTimer;
     long timerId = -1;
+    int proposalNumber;
+    PaxosMessage lastMessageReceived;
 
     public Client(String protoName, short protoId) {
         super(protoName, protoId);
@@ -49,6 +51,7 @@ public class Client extends GenericProtocolExtension {
         currentTerm = 1;
         ops = new LinkedList<>();
         count = 0;
+        proposalNumber = 1;
     }
 
     @Override
@@ -69,11 +72,6 @@ public class Client extends GenericProtocolExtension {
         sendRequest(request,LearnProto.ID);
         sendRequest(request,ProposeProtocol.ID);
 
-
-        //registerTimerHandler(HashResultPrinterTimer.ID,this::printResultsPeriodically);
-        //registerTimerHandler(ProposeTimer.ID,this::timeHandler);
-        //registerTimerHandler(FinishTimer.ID,this::onFinishTimer);
-
         String [] contacts = properties.getProperty("contacts").split(",");
         for (String contact : contacts) {
             String [] splittedAddress = contact.split(":");
@@ -83,26 +81,26 @@ public class Client extends GenericProtocolExtension {
 
         }
 
-        setupTimer(ProposeTimer.ID,10*1000);
-        //setupPeriodicTimer(ProposeTimer.ID,5*1000,250);
+        setupTimer(ProposeTimer.ID,5*1000);
+        //timerId = setupPeriodicTimer(ProposeTimer.ID,5*1000,100);
         setupPeriodicTimer(HashResultPrinterTimer.ID,5*1000,5*1000);
     }
 
+    Set<String> sent = new HashSet<>();
     public PaxosMessage nextMessage(){
         if (start == 0){
             start = System.currentTimeMillis();
         }
-        if (count > 1000){
-            setupTimer(FinishTimer.ID,30*1000);
-            return null;
-        } else {
-            count++;
-        }
-        if(lastProposed != null){
+        if (count > 1000 || lastProposed != null){
             return lastProposed;
         }
+
+        count++;
         String msgValue = self+"_"+count;
-        return new PaxosMessage(msgValue,msgValue);
+        lastProposed = new PaxosMessage(msgValue,msgValue);
+        sent.add(lastProposed.msgId);
+        lastMessageReceived = lastProposed;
+        return lastProposed;
 
     }
 
@@ -122,15 +120,11 @@ public class Client extends GenericProtocolExtension {
 
     @TimerEventHandlerAnnotation(TIMER_ID = ProposeTimer.ID)
     public void timeHandler(long timer){
+        nextMessage();
         if(lastProposed == null){
-            lastProposed = nextMessage();
-        }
-        if(lastProposed == null){
-            super.cancelTimer(timer);
+            log.info(count+"__"+self+" -- ELAPSED IS -- : "+(System.currentTimeMillis()-start)+" TERM: "+currentTerm+" __ "+sent.size());
         } else {
-            super.cancelTimer(timer);
-            sendRequest(new ProposeRequest(lastProposed,0,currentTerm),ProposeProtocol.ID);
-            timerId = setupTimer(ProposeTimer.ID,200);
+            sendRequest(new ProposeRequest(lastProposed,proposalNumber,currentTerm),ProposeProtocol.ID);
         }
     }
 
@@ -145,24 +139,25 @@ public class Client extends GenericProtocolExtension {
         PaxosMessage value = request.decidedMessage.paxosMessage;
         if(currentTerm == request.decidedMessage.term){
             currentTerm++;
-        } else {
-            return;
-        }
-        cancelTimer(timerId);
-        ops.add(request.decidedMessage.paxosMessage);
-        if (lastProposed!=null){
-            if(lastProposed.msgId.equals(value.msgId)){
-                log.info(self+". TERM "+currentTerm+ ". DECISION TAKEN "+request.decidedMessage.paxosMessage.msgId);
+            if(currentTerm == 3003){
+                setupTimer(FinishTimer.ID,30*1000);
+            }
+            proposalNumber = request.decidedMessage.proposalNum;
+            ops.add(request.decidedMessage.paxosMessage);
+
+            if (lastProposed!=null && lastProposed.msgId.equals(value.msgId)){
+                if(count > 1000 && lastMessageReceived.msgId.equals(lastProposed.msgId) ){
+                    log.info(self+". TERM "+currentTerm+ ". DECISION TAKEN "+request.decidedMessage.paxosMessage.msgId+" :::  "+lastMessageReceived.msgId);
+                }
+                sent.remove(lastProposed.msgId);
                 lastProposed = null;
-                lastProposed = nextMessage();
             }
-            if(lastProposed != null){
-                sendRequest(new ProposeRequest(lastProposed,request.decidedMessage.proposalNum,currentTerm),ProposeProtocol.ID);
-                timerId = setupTimer(ProposeTimer.ID,200);
-            } else {
-                log.info(self+" -- ELAPSED IS -- : "+(System.currentTimeMillis()-start));
-            }
+        } else {
+            log.info(self+"_ currentTerm "+currentTerm+". RECEIVED: "+currentTerm);
+            System.exit(0);
         }
+
+        timeHandler(timerId);
     }
 
     @ChannelEventHandlerAnnotation(EVENT_ID = OnMessageConnectionUpEvent.EVENT_ID)
