@@ -41,6 +41,7 @@ public class Client extends GenericProtocolExtension {
     long timerId = -1;
     int proposalNumber;
     PaxosMessage lastSentMessage;
+    int countMAX ;
 
     public Client(String protoName, short protoId) {
         super(protoName, protoId);
@@ -49,6 +50,7 @@ public class Client extends GenericProtocolExtension {
         ops = new LinkedList<>();
         count = 0;
         proposalNumber = 1;
+        countMAX = 10000;
     }
 
     @Override
@@ -83,19 +85,17 @@ public class Client extends GenericProtocolExtension {
         setupPeriodicTimer(HashResultPrinterTimer.ID,5*1000,5*1000);
     }
 
-    Set<String> sent = new HashSet<>();
     public PaxosMessage nextMessage(){
         if (start == 0){
             start = System.currentTimeMillis();
         }
-        if (count > 1000 || lastProposed != null){
+        if (count > countMAX || lastProposed != null){
             return lastProposed;
         }
 
         count++;
         String msgValue = self+"_"+count;
         lastProposed = new PaxosMessage(msgValue,msgValue);
-        sent.add(lastProposed.msgId);
         lastSentMessage = lastProposed;
         return lastProposed;
 
@@ -136,17 +136,14 @@ public class Client extends GenericProtocolExtension {
         PaxosMessage value = request.decidedMessage.paxosMessage;
         if(currentTerm == request.decidedMessage.term){
             currentTerm++;
-            if(currentTerm == 3003){
-                setupTimer(FinishTimer.ID,30*1000);
-            }
             proposalNumber = request.decidedMessage.proposalNum;
             ops.add(request.decidedMessage.paxosMessage);
 
             if (lastProposed!=null && lastProposed.msgId.equals(value.msgId)){
-                if(count > 1000 && lastSentMessage.msgId.equals(lastProposed.msgId) ){
-                    log.info(count+"__"+self+" -- ELAPSED IS -- : "+(System.currentTimeMillis()-start)+" TERM: "+currentTerm+" __ "+sent.size());
+                if(count > countMAX && lastSentMessage.msgId.equals(lastProposed.msgId) ){
+                    log.info(count+"__"+self+" -- ELAPSED IS -- : "+(System.currentTimeMillis()-start)+" TERM: "+currentTerm+" __ "+System.currentTimeMillis());
+                    setupTimer(FinishTimer.ID,30*1000);
                 }
-                sent.remove(lastProposed.msgId);
                 lastProposed = null;
             }
         } else {

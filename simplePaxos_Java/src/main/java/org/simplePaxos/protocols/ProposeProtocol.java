@@ -68,7 +68,7 @@ public class ProposeProtocol extends GenericProtocolExtension {
         if(request.getPaxosMessage() == null || currentTerm > request.term){
             return;
         }
-        setupTimer(ProposeTimer.ID,200);
+        setupTimer(ProposeTimer.ID,150 + random.nextInt(500));
         promises = 0;
         acks = 0;
         highestPromise = null;
